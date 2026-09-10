@@ -1,7 +1,44 @@
-document.querySelectorAll('a[href^="#"]:not([href="#"])').forEach(link => link.addEventListener('click', e => {
-  const target = document.querySelector(link.getAttribute('href'));
-  if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth' }); }
-}));
+// Native anchors preserve URL hashes, history and reduced-motion preferences.
+const navigation = document.querySelector('.nav');
+const sectionLinks = [...document.querySelectorAll('.nav nav a[href^="#"]')];
+const navigationSections = sectionLinks.map(link => ({
+  link,
+  section: document.getElementById(link.hash.slice(1))
+})).filter(item => item.section);
+let navigationFrame = 0;
+
+function updateNavigation() {
+  navigationFrame = 0;
+  const offset = (navigation?.getBoundingClientRect().height || 0) + 16;
+  document.documentElement.style.setProperty('--anchor-offset', `${offset}px`);
+  let current = navigationSections[0];
+  for (const item of navigationSections) {
+    if (item.section.getBoundingClientRect().top <= offset + 1) current = item;
+  }
+  // The final section may be too short to reach the top of the viewport.
+  if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) {
+    current = navigationSections[navigationSections.length - 1];
+  }
+  for (const item of navigationSections) {
+    const active = item === current;
+    item.link.classList.toggle('active', active);
+    if (active) item.link.setAttribute('aria-current', 'location');
+    else item.link.removeAttribute('aria-current');
+  }
+}
+
+function scheduleNavigationUpdate() {
+  if (!navigationFrame) navigationFrame = requestAnimationFrame(updateNavigation);
+}
+
+window.addEventListener('scroll', scheduleNavigationUpdate, { passive: true });
+window.addEventListener('resize', scheduleNavigationUpdate);
+window.addEventListener('hashchange', scheduleNavigationUpdate);
+window.addEventListener('load', scheduleNavigationUpdate);
+if (navigation && typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(scheduleNavigationUpdate).observe(navigation);
+}
+updateNavigation();
 
 const csdnColumnUrl = 'https://blog.csdn.net/2302_78130397/category_13202432.html?fromshare=blogcolumn&sharetype=blogcolumn&sharerId=13202432&sharerefer=PC&sharesource=2302_78130397&sharefrom=from_link';
 const notesRow = document.querySelector('#notes .empty-row');
